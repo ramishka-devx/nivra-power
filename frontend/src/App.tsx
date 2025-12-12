@@ -164,12 +164,17 @@ export default function NILMRealtimeUI() {
     };
   }, []);
 
-  const deviceStates = latest?.prediction.device_states ?? { bulb: false, fan: false, iron: false };
-  const aggregatedPower = Number(latest?.features?.active_power ?? 0).toFixed(2);
+  const activePower = Number(latest?.features?.active_power ?? 0);
+  const aggregatedPower = activePower.toFixed(2);
+  const zeroPower = Math.abs(activePower) < 25;
+
+  const deviceStates = zeroPower
+    ? { bulb: false, fan: false, iron: false }
+    : latest?.prediction.device_states ?? { bulb: false, fan: false, iron: false };
   const voltage = Number(latest?.features?.voltage ?? 0).toFixed(2);
   const current = Number(latest?.features?.current ?? 0).toFixed(3);
   const pf = Number(latest?.features?.power_factor ?? 0).toFixed(3);
-  const topLabel = latest?.prediction.label ?? null;
+  const topLabel = zeroPower ? null : latest?.prediction.label ?? null;
   const topProb = latest?.prediction.probabilities?.[0]?.probability ?? 0;
 
   const probabilityRows = useMemo(() => {

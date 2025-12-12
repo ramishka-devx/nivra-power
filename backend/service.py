@@ -54,18 +54,20 @@ class PredictionEngine:
         if not artifact_path.exists():
             raise FileNotFoundError(f"Model artifact not found at {artifact_path}")
         
-        # Try to load as pickle first, then joblib
+        # Prefer joblib (more robust with sklearn artifacts), fall back to pickle
+        bundle: Dict[str, Any] | None = None
         try:
-            if str(artifact_path).endswith('.pkl'):
-                with open(artifact_path, 'rb') as f:
-                    bundle: Dict[str, Any] = pickle.load(f)
-                LOGGER.info("Loaded model from pickle file: %s", artifact_path)
-            else:
-                bundle: Dict[str, Any] = joblib.load(artifact_path)
-                LOGGER.info("Loaded model from joblib file: %s", artifact_path)
-        except Exception as e:
-            LOGGER.error("Failed to load model: %s", e)
-            raise
+            bundle = joblib.load(artifact_path)
+            LOGGER.info("Loaded model with joblib: %s", artifact_path)
+        except Exception as joblib_exc:  # pragma: no cover - runtime safety
+            LOGGER.warning("joblib.load failed (%s), trying pickle", joblib_exc)
+            try:
+                with open(artifact_path, "rb") as f:
+                    bundle = pickle.load(f)
+                LOGGER.info("Loaded model with pickle: %s", artifact_path)
+            except Exception as pickle_exc:
+                LOGGER.error("Failed to load model with joblib and pickle: %s", pickle_exc)
+                raise
         
         self.model = bundle["model"]
         self.feature_columns: List[str] = bundle["feature_columns"]
